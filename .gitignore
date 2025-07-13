@@ -21,3 +21,5 @@ imgui
 
 **/.DS_Store
 .cache/
+/.vs
+/CMakeSettings.json

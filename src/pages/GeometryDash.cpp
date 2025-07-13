@@ -264,6 +264,7 @@ void drawLayoutArrows(
 }
 
 void DevTools::drawHighlight(CCNode* node, HighlightMode mode) {
+    if (!node) return;
 	auto& foreground = *ImGui::GetWindowDrawList();
 	auto parent = node->getParent();
 	auto bounding_box = node->boundingBox();
@@ -358,8 +359,9 @@ void DevTools::drawHighlight(CCNode* node, HighlightMode mode) {
 }
 
 void DevTools::drawLayoutHighlights(CCNode* node) {
+    if (!node) return;
     // TODO: undo later
-    #if 0
+    #if 1 //0 can we now?...
     for (auto child : ranges::reverse(CCArrayExt<CCNode*>(node->getChildren()))) {
         if (!child->isVisible()) continue;
         if (child->getLayout()) {
@@ -378,59 +380,91 @@ void DevTools::drawLayoutHighlights(CCNode* node) {
 }
 
 void DevTools::drawGD(GLRenderCtx* gdCtx) {
-    if (gdCtx) {
-        auto winSize = CCDirector::get()->getWinSize();
-        auto title = fmt::format(
-            "Geometry Dash ({}x{})###devtools/geometry-dash",
-            winSize.width, winSize.height
-        );
-        if (ImGui::Begin(title.c_str())) {
-            auto list = ImGui::GetWindowDrawList();
-            auto ratio = gdCtx->size().x / gdCtx->size().y;
+    if (!gdCtx) return;
 
-            auto pad = ImGui::GetStyle().FramePadding.x;
+    auto winSize = CCDirector::get()->getWinSize();
+    auto title = fmt::format(
+        "Geometry Dash ({}x{})###devtools/geometry-dash",
+        winSize.width, winSize.height
+    );
+    bool gameOpen = true;
+    if (ImGui::Begin(title.c_str(), &gameOpen, ImGuiWindowFlags_MenuBar)) {
 
-            auto winPos = ImGui::GetCursorScreenPos();
-            auto winSize = ImGui::GetContentRegionAvail();
-            
-            ImVec2 imgSize = {
-                (winSize.y - pad * 2) * ratio,
-                (winSize.y - pad * 2)
-            };
-            if (winSize.x - pad * 2 < imgSize.x) {
-                imgSize = {
-                    (winSize.x - pad * 2),
-                    (winSize.x - pad * 2) / ratio
-                };
-            }
-            auto imgPos = winPos + winSize / 2 - imgSize / 2;
-            list->AddImage(
-                gdCtx->texture(),
-                imgPos, imgPos + imgSize,
-                { 0, 1 }, { 1, 0 }
-            );
-            getGDWindowRect() = {
-                imgPos.x, imgPos.y,
-                imgPos.x + imgSize.x,
-                imgPos.y + imgSize.y
-            };
-            shouldPassEventsToGDButTransformed() = 
-                // ensure that the some other window isn't on top
-                ImGui::IsWindowHovered() &&
-                getGDWindowRect().Contains(ImGui::GetMousePos());
-            
-            if (m_settings.highlightLayouts) {
-                this->drawLayoutHighlights(CCDirector::get()->getRunningScene());
-            }
+        if (!gameOpen) game::exit(true);
 
-            for (auto& [node, mode] : m_toHighlight) {
-                this->drawHighlight(node, mode);
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::MenuItem("Save")) {
+                AppDelegate::get()->trySaveGame(0);
+                AppDelegate::get()->gameDidSave();
             }
-            m_toHighlight.clear();
+            ImGui::SameLine();
+            static Ref<CCSet> PAUSED_TARGETS = nullptr;
+            if (ImGui::MenuItem(m_pauseGame ? "Resume" : "Pause")) {
+                m_pauseGame ^= 1;
+#ifndef __APPLE__ //#endif
+                if (m_pauseGame) {
+                    FMODAudioEngine::sharedEngine()->pauseAllAudio();
+                    PAUSED_TARGETS = CCDirector::get()->getScheduler()->pauseAllTargets();
+                }
+                else if (PAUSED_TARGETS) {
+                    FMODAudioEngine::sharedEngine()->resumeAllAudio();
+                    CCDirector::get()->getScheduler()->resumeTargets(PAUSED_TARGETS);
+                }
+#endif
+            }
+            ImGui::SameLine();
+            if (ImGui::MenuItem("Reload")) GameManager::get()->reloadAll(0, 0, 0);
+            ImGui::SameLine();
+            if (ImGui::MenuItem("Restart")) game::restart(true);
         }
-        ImGui::End();
+        ImGui::EndMenuBar();
+
+        auto list = ImGui::GetWindowDrawList();
+        auto ratio = gdCtx->size().x / gdCtx->size().y;
+
+        auto pad = ImGui::GetStyle().FramePadding.x;
+
+        auto winPos = ImGui::GetCursorScreenPos();
+        auto winSize = ImGui::GetContentRegionAvail();
+
+        ImVec2 imgSize = {
+            (winSize.y - pad * 2) * ratio,
+            (winSize.y - pad * 2)
+        };
+        if (winSize.x - pad * 2 < imgSize.x) {
+            imgSize = {
+                (winSize.x - pad * 2),
+                (winSize.x - pad * 2) / ratio
+            };
+        }
+        auto imgPos = winPos + winSize / 2 - imgSize / 2;
+        list->AddImage(
+            gdCtx->texture(),
+            imgPos, imgPos + imgSize,
+            { 0, 1 }, { 1, 0 }
+        );
+        getGDWindowRect() = {
+            imgPos.x, imgPos.y,
+            imgPos.x + imgSize.x,
+            imgPos.y + imgSize.y
+        };
+        shouldPassEventsToGDButTransformed() =
+            // ensure that the some other window isn't on top
+            ImGui::IsWindowHovered() &&
+            getGDWindowRect().Contains(ImGui::GetMousePos());
+
+        if (m_settings.highlightLayouts) {
+            this->drawLayoutHighlights(CCDirector::get()->getRunningScene());
+        }
+
+        for (auto& [node, mode] : m_toHighlight) {
+            this->drawHighlight(node, mode);
+        }
+        m_toHighlight.clear();
     }
-}
+    ImGui::End();
+
+};
 
 // cheaty way to detect resize and update the render
 class ResizeWatcher : public CCObject {

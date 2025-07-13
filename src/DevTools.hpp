@@ -22,21 +22,23 @@ struct Settings {
     bool attributesInTree = false;
     bool alwaysHighlight = true;
     bool highlightLayouts = false;
-    bool arrowExpand = false;
+    bool arrowExpand = false GEODE_DESKTOP(+true);
+    bool doubleClickExpand = false GEODE_DESKTOP(+true);
     bool orderChildren = true;
     bool advancedSettings = false;
     bool showMemoryViewer = false;
     bool showModGraph = false;
     std::string theme = DARK_THEME;
     ccColor4B themeColor = {2, 119, 189, 255};
+    float fontGlobalScale = 1.f;
 };
 
 class DevTools {
 protected:
-    bool m_visible = false;
+    bool m_visible = getMod()->getSavedValue<bool>("visible");
     bool m_setup = false;
     bool m_reloadTheme = true;
-    bool m_shouldRelayout = false;
+    int m_shouldRelayout = false;
     bool m_showModGraph = false;
     bool m_pauseGame = false;
     Settings m_settings;
@@ -53,7 +55,7 @@ protected:
     void setupPlatform();
 
     void drawTree();
-    void drawTreeBranch(CCNode* node, size_t index);
+    void drawTreeBranch(CCNode* node, size_t index, bool parentIsVisible = true);
     void drawSettings();
     void drawAdvancedSettings();
     void drawNodeAttributes(CCNode* node);
@@ -111,6 +113,7 @@ public:
     void setup();
     void destroy();
 
+    bool isVisible();
     void show(bool visible);
     void toggle();
 };

@@ -64,13 +64,13 @@ void DevTools::drawBasicAttributes(CCNode* node) {
     if (ImGui::Button(U8STR(FEATHER_COPY " Copy Class Name"))) {
         clipboard::write(getNodeName(node));
     }
+
     ImGui::Text("Address: %s", fmt::to_string(fmt::ptr(node)).c_str());
     ImGui::SameLine();
-    if (ImGui::Button(U8STR(FEATHER_COPY " Copy"))) {
-        clipboard::write(
-            utils::intToHex(reinterpret_cast<uintptr_t>(node))
-        );
+    if (ImGui::SmallButton(U8STR(FEATHER_COPY " Copy"))) {
+        clipboard::write(fmt::format("{:#x}", reinterpret_cast<uintptr_t>(node)));
     }
+
     if (node->getUserData()) {
         ImGui::Text("User data: 0x%p", node->getUserData());
     }
@@ -79,7 +79,7 @@ void DevTools::drawBasicAttributes(CCNode* node) {
         std::string nodeID = node->getID();
         ImGui::Text("Node ID: %s", nodeID.c_str());
         ImGui::SameLine();
-        if (ImGui::Button(U8STR(FEATHER_COPY " Copy##copynodeid"))) {
+        if (ImGui::SmallButton(U8STR(FEATHER_COPY " Copy##copynodeid"))) {
             clipboard::write(nodeID);
         }
     } else {
@@ -147,10 +147,29 @@ void DevTools::drawBasicAttributes(CCNode* node) {
         }
     }
 
+    if (auto particle = typeinfo_cast<CCParticleSystemQuad*>(node)) {
+        std::string ps = GameToolbox::saveParticleToString(particle).c_str();
+        if (ImGui::InputText("Particle String", &ps, 256)) {
+            GameToolbox::particleFromString(ps.c_str(), particle, 0);
+        }
+    }
+
     if (auto sprite = typeinfo_cast<CCSprite*>(node)) {
         checkbox("Flip X", sprite, &CCSprite::isFlipX, &CCSprite::setFlipX);
         ImGui::SameLine();
         checkbox("Flip Y", sprite, &CCSprite::isFlipY, &CCSprite::setFlipY);
+    }
+
+    if (auto layer = typeinfo_cast<CCLayer*>(node)) {
+        checkbox("Touch", layer, &CCLayer::isTouchEnabled, &CCLayer::setTouchEnabled);
+        ImGui::SameLine();
+        checkbox("Mouse", layer, &CCLayer::isMouseEnabled, &CCLayer::setMouseEnabled);
+        ImGui::SameLine();
+        checkbox("Keypad", layer, &CCLayer::isKeypadEnabled, &CCLayer::setKeypadEnabled);
+        ImGui::SameLine();
+        checkbox("Keyboard", layer, &CCLayer::isKeyboardEnabled, &CCLayer::setKeyboardEnabled);
+
+        checkbox("Accelerometer Enabled", layer, &CCLayer::isAccelerometerEnabled, &CCLayer::setAccelerometerEnabled);
     }
     
     checkbox("Visible", node, &CCNode::isVisible, &CCNode::setVisible);
@@ -221,11 +240,29 @@ void DevTools::drawColorAttributes(CCNode* node) {
 }
 
 void DevTools::drawLabelAttributes(CCNode* node) {
-    if (auto labelNode = typeinfo_cast<CCLabelProtocol*>(node)) {
-        std::string str = labelNode->getString();
+    if (auto label = typeinfo_cast<CCLabelProtocol*>(node)) {
+        // Abuse matjson to support escape seq and stuff
+        std::string str = matjson::Value(label->getString()).dump();
         if (ImGui::InputText("Text", &str, 256)) {
-            labelNode->setString(str.c_str());
+            auto parse = matjson::parseAs<std::string>(str);
+            label->setString(parse.err().value_or(parse.unwrapOrDefault()).c_str());
         }
+    }
+    if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {
+        if (ImGui::InputText("Fnt File", &label->m_sFntFile, 256)) label->setFntFile(label->m_sFntFile.c_str());
+        if (ImGui::InputInt("Extra Kerning", &label->m_nExtraKerning)) label->setExtraKerning(label->m_nExtraKerning); //inlined btw
+        if (ImGui::DragFloat("Width", &label->m_fWidth, 0.1f)) if (label->m_fWidth) label->setWidth(label->m_fWidth);
+
+        const char* alignmentItems[] = { "Left", "Center", "Right" };
+        int currentAlignment = static_cast<int>(label->m_pAlignment);
+        if (ImGui::Combo("Alignment", &currentAlignment, alignmentItems, IM_ARRAYSIZE(alignmentItems))) {
+            label->m_pAlignment = static_cast<CCTextAlignment>(currentAlignment);
+            label->setAlignment(label->m_pAlignment);
+        }
+
+        /*if (ImGui::Checkbox("Line Break Without Spaces", &label->m_bLineBreakWithoutSpaces)) {
+            label->setLineBreakWithoutSpace(label->m_bLineBreakWithoutSpaces);
+        }*/
     }
 }
 
@@ -243,15 +280,24 @@ void DevTools::drawAxisGapAttribute(CCNode* node) {
 
 void DevTools::drawTextureAttributes(CCNode* node) {
     if (auto textureProtocol = typeinfo_cast<CCTextureProtocol*>(node)) {
+
+        ccBlendFunc blend = textureProtocol->getBlendFunc();
+        unsigned int blendVals[2] = { blend.src, blend.dst };
+        if (ImGui::InputInt2("Blend Func", reinterpret_cast<int*>(blendVals))) {
+            ccBlendFunc newBlend = { static_cast<GLenum>(blendVals[0]), static_cast<GLenum>(blendVals[1]) };
+            textureProtocol->setBlendFunc(newBlend);
+        }
+        ImGui::NewLine();
+
         if (auto texture = textureProtocol->getTexture()) {
             if (auto spriteNode = typeinfo_cast<CCSprite*>(node)) {
                 auto* cachedFrames = CCSpriteFrameCache::sharedSpriteFrameCache()->m_pSpriteFrames;
                 const auto rect = spriteNode->getTextureRect();
                 for (auto [key, frame] : CCDictionaryExt<std::string, CCSpriteFrame*>(cachedFrames)) {
                     if (frame->getTexture() == texture && frame->getRect() == rect) {
-                        ImGui::Text("Frame name: %s", key.c_str());
+                        ImGui::TextWrapped("Frame name: %s", key.c_str());
                         ImGui::SameLine();
-                        if (ImGui::Button(U8STR(FEATHER_COPY " Copy##copysprframename"))) {
+                        if (ImGui::SmallButton(U8STR(FEATHER_COPY " Copy##copysprframename"))) {
                             clipboard::write(key);
                         }
                         break;
@@ -290,6 +336,7 @@ void DevTools::drawTextureAttributes(CCNode* node) {
                 }
             }
         }
+
         ImGui::NewLine();
         ImGui::Separator();
         ImGui::NewLine();
@@ -298,41 +345,70 @@ void DevTools::drawTextureAttributes(CCNode* node) {
 
 void DevTools::drawMenuItemAttributes(CCNode* node) {
     if (auto menuItemNode = typeinfo_cast<CCMenuItem*>(node)) {
+        //selector
         const auto selector = menuItemNode->m_pfnSelector;
         if (!selector) {
             std::string addr = "N/A";
             ImGui::Text("CCMenuItem selector: %s", addr.c_str());
-        } else {
+        } 
+        else {
             const auto addr = formatAddressIntoOffset(addresser::getNonVirtual(selector), true);
             ImGui::Text("CCMenuItem selector: %s", addr.c_str());
             ImGui::SameLine();
-            if (ImGui::Button(U8STR(FEATHER_COPY " Copy##copymenuitem"))) {
+            if (ImGui::SmallButton(U8STR(FEATHER_COPY " Copy##copymenuitem"))) {
                 const auto addrNoModule = formatAddressIntoOffset(addresser::getNonVirtual(selector), false);
                 clipboard::write(addrNoModule);
             }
         }
-        if (ImGui::Button(U8STR(FEATHER_LINK " Activate##activatemenuitem"))) {
-            menuItemNode->activate();
+        //listener
+        const auto listener = menuItemNode->m_pListener;
+        if (!listener) {
+            std::string addr = "N/A";
+            ImGui::Text("CCMenuItem listener: %s", addr.c_str());
         }
+        else {
+            const auto addr = fmt::to_string(fmt::ptr(node));
+            ImGui::Text("CCMenuItem listener: %s", addr.c_str());
+            if (auto listenerNode = typeinfo_cast<CCNode*>(listener)) {
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Select Node##selmenuitemlistener")) m_selectedNode = listenerNode;
+                if (ImGui::IsItemHovered()) highlightNode(listenerNode, HighlightMode::Hovered);
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton(U8STR(FEATHER_COPY " Copy##copymenuitemlistener"))) {
+                const auto addrNoModule = formatAddressIntoOffset(addresser::getNonVirtual(listener), false);
+                clipboard::write(addrNoModule);
+            }
+        }
+
+        if (ImGui::Button(U8STR(FEATHER_LINK " Activate##activatemenuitem"))) menuItemNode->activate(); 
+        ImGui::SameLine();
+        if (ImGui::Button(U8STR(FEATHER_LINK " Select##activatemenuitem"))) menuItemNode->selected(); 
+        ImGui::SameLine();
+        if (ImGui::Button(U8STR(FEATHER_LINK " Unselect##activatemenuitem"))) menuItemNode->unselected();
+        ImGui::SameLine();
         checkbox("Enabled##enabledmenuitem", menuItemNode, &CCMenuItem::isEnabled, &CCMenuItem::setEnabled);
 
-        if (auto menuItemSpriteExtra = typeinfo_cast<CCMenuItemSpriteExtra*>(menuItemNode)) {
-            bool animationEnabled = menuItemSpriteExtra->m_animationEnabled;
-            if (ImGui::Checkbox("Animation Enabled##menuitemanimationenabled", &animationEnabled)) {
-                menuItemSpriteExtra->m_animationEnabled = animationEnabled;
-            }
-            float sizeMult = menuItemSpriteExtra->m_fSizeMult;
-            if (ImGui::DragFloat("Size Multiplier##menuitemsizemult", &sizeMult, .1f)) {
-                menuItemSpriteExtra->setSizeMult(sizeMult);
-            }
-            float scaleMultiplier = menuItemSpriteExtra->m_scaleMultiplier;
-            if (ImGui::DragFloat("Scale Multipler##menuitemscalemultiplier", &scaleMultiplier, .03f)) {
-                menuItemSpriteExtra->m_scaleMultiplier = scaleMultiplier;
-            }
-            float baseScale = menuItemSpriteExtra->m_baseScale;
-            if (ImGui::DragFloat("Base Scale##menuitembasescale", &baseScale, .03f)) {
-                menuItemSpriteExtra->m_baseScale = baseScale;
-            }
+        if (auto extra = typeinfo_cast<CCMenuItemSpriteExtra*>(menuItemNode)) {
+            std::string m_activateSound = extra->m_activateSound.c_str();
+            if (ImGui::InputText("Activate Sound", &m_activateSound, 256)) extra->m_activateSound = m_activateSound.c_str();
+            std::string m_selectSound = extra->m_selectSound.c_str();
+            if (ImGui::InputText("Select Sound", &m_selectSound, 256)) extra->m_selectSound = m_selectSound.c_str();
+
+            ImGui::Checkbox("Animation Enabled##menuitemanimationenabled", &extra->m_animationEnabled);
+            if (extra->m_animationEnabled) {
+                ImGui::DragFloat("Selected duration##menuitem""m_duration", &extra->m_duration, .03f);
+                ImGui::DragFloat("Unselected duration##menuitem""m_unselectedDuration", &extra->m_unselectedDuration, .03f);
+                if (ImGui::DragFloat("Size Multiplier##menuitemsizemult", &extra->m_fSizeMult, .01f)) {
+                    extra->setSizeMult(extra->m_fSizeMult);
+                }
+                ImGui::DragFloat("Scale Multipler##menuitemscalemultiplier", &extra->m_scaleMultiplier, .01f);
+                ImGui::DragFloat("Base Scale##menuitembasescale", &extra->m_baseScale, .01f);
+            };
+
+            ImGui::DragFloat("##menuitemcolordip", &extra->m_colorDip, .01f);
+            ImGui::SameLine();
+            ImGui::Checkbox("Color Dip##menuitemcolorenabled", &extra->m_colorEnabled);
         }
 
         ImGui::NewLine();
@@ -1112,9 +1188,6 @@ void DevTools::drawLayoutAttributes(CCNode* node){
 }
 
 void DevTools::drawAttributes() {
-    if (!m_selectedNode) {
-        ImGui::TextWrapped("Select a Node to Edit in the Scene or Tree");
-    } else {
-        this->drawNodeAttributes(m_selectedNode);
-    }
+    if (!m_selectedNode) return ImGui::TextWrapped("Select a Node to Edit in the Scene or Tree");
+    this->drawNodeAttributes(m_selectedNode);
 }

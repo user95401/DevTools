@@ -16,17 +16,19 @@ struct matjson::Serialize<Settings> {
         Settings defaults;
 
         return Ok(Settings {
-            .GDInWindow = value["game_in_window"].asBool().unwrapOr(std::move(defaults.GDInWindow)),
-            .attributesInTree = value["attributes_in_tree"].asBool().unwrapOr(std::move(defaults.attributesInTree)),
-            .alwaysHighlight = value["always_highlight"].asBool().unwrapOr(std::move(defaults.alwaysHighlight)),
-            .highlightLayouts = value["highlight_layouts"].asBool().unwrapOr(std::move(defaults.highlightLayouts)),
-            .arrowExpand = value["arrow_expand"].asBool().unwrapOr(std::move(defaults.arrowExpand)),
-            .orderChildren = value["order_children"].asBool().unwrapOr(std::move(defaults.orderChildren)),
-            .advancedSettings = value["advanced_settings"].asBool().unwrapOr(std::move(defaults.advancedSettings)),
-            .showMemoryViewer = value["show_memory_viewer"].asBool().unwrapOr(std::move(defaults.showMemoryViewer)),
-            .showModGraph = value["show_mod_graph"].asBool().unwrapOr(std::move(defaults.showModGraph)),
-            .theme = value["theme"].asString().unwrapOr(std::move(defaults.theme)),
-            .themeColor = value["theme_color"].as<ccColor4B>().isOk() ? value["theme_color"].as<ccColor4B>().unwrap() : std::move(defaults.themeColor)
+            .GDInWindow = value["game_in_window"].asBool().unwrapOr(std::move(defaults.GDInWindow))
+            ,.attributesInTree = value["attributes_in_tree"].asBool().unwrapOr(std::move(defaults.attributesInTree))
+            ,.alwaysHighlight = value["always_highlight"].asBool().unwrapOr(std::move(defaults.alwaysHighlight))
+            ,.highlightLayouts = value["highlight_layouts"].asBool().unwrapOr(std::move(defaults.highlightLayouts))
+            ,.arrowExpand = value["arrow_expand"].asBool().unwrapOr(std::move(defaults.arrowExpand))
+            ,.doubleClickExpand = value["double_click_expand"].asBool().unwrapOr(std::move(defaults.doubleClickExpand))
+            ,.orderChildren = value["order_children"].asBool().unwrapOr(std::move(defaults.orderChildren))
+            ,.advancedSettings = value["advanced_settings"].asBool().unwrapOr(std::move(defaults.advancedSettings))
+            ,.showMemoryViewer = value["show_memory_viewer"].asBool().unwrapOr(std::move(defaults.showMemoryViewer))
+            ,.showModGraph = value["show_mod_graph"].asBool().unwrapOr(std::move(defaults.showModGraph))
+            ,.theme = value["theme"].asString().unwrapOr(std::move(defaults.theme))
+            ,.themeColor = value["theme_color"].as<ccColor4B>().unwrapOr(std::move(defaults.themeColor))
+            ,.fontGlobalScale = value["font_global_scale"].as<float>().unwrapOr(std::move(defaults.highlightLayouts))
         });
     }
 
@@ -37,12 +39,14 @@ struct matjson::Serialize<Settings> {
             { "always_highlight", settings.alwaysHighlight },
             { "highlight_layouts", settings.highlightLayouts },
             { "arrow_expand", settings.arrowExpand },
+            { "double_click_expand", settings.doubleClickExpand },
             { "order_children", settings.orderChildren },
             { "advanced_settings", settings.advancedSettings },
             { "show_memory_viewer", settings.showMemoryViewer },
             { "show_mod_graph", settings.showModGraph },
             { "theme", settings.theme },
             { "theme_color", settings.themeColor },
+            { "font_global_scale", settings.fontGlobalScale },
         });
     }
 };
@@ -88,7 +92,29 @@ void DevTools::highlightNode(CCNode* node, HighlightMode mode) {
 
 void DevTools::drawPage(const char* name, void(DevTools::*pageFun)()) {
     if (ImGui::Begin(name, nullptr, ImGuiWindowFlags_HorizontalScrollbar)) {
+
+        ImGui::PushTextWrapPos(ImGui::GetContentRegionAvail().x); // Fix wrapping after window resize
+
         (this->*pageFun)();
+
+        ImGui::PopTextWrapPos();
+
+        // Scroll when dragging (useful for android users)
+        auto mouse_dt = ImGui::GetIO().MouseDelta;
+        ImVec2 delta = ImGui::GetIO().MouseDownDuration[0] > 0.1 ? ImVec2(mouse_dt.x * -1, mouse_dt.y * -1) : ImVec2(0, 0);
+        ImGuiContext& g = *ImGui::GetCurrentContext();
+        ImGuiWindow* window = g.CurrentWindow;
+        if (!window) return;
+        bool hovered = false;
+        bool held = false;
+        ImGuiID id = window->GetID("##scrolldraggingoverlay");
+        ImGui::KeepAliveID(id);
+        ImGuiButtonFlags button_flags = ImGuiButtonFlags_MouseButtonLeft;
+        if (g.HoveredId == 0) // If nothing hovered so far in the frame (not same as IsAnyItemHovered()!)
+            ImGui::ButtonBehavior(window->Rect(), id, &hovered, &held, button_flags);
+        if (held && fabs(delta.x) >= 0.1f) ImGui::SetScrollX(window, window->Scroll.x + delta.x);
+        if (held && fabs(delta.y) >= 0.1f) ImGui::SetScrollY(window, window->Scroll.y + delta.y);
+
     }
     ImGui::End();
 }
@@ -97,28 +123,55 @@ void DevTools::drawPages() {
     const auto size = CCDirector::sharedDirector()->getOpenGLView()->getFrameSize();
 
     if ((!Mod::get()->setSavedValue("layout-loaded", true) || m_shouldRelayout)) {
-        m_shouldRelayout = false;
 
         auto id = m_dockspaceID;
         ImGui::DockBuilderRemoveNode(id);
         ImGui::DockBuilderAddNode(id, ImGuiDockNodeFlags_PassthruCentralNode);
 
-        auto leftDock = ImGui::DockBuilderSplitNode(m_dockspaceID, ImGuiDir_Left, 0.3f, nullptr, &id);
+        if (m_shouldRelayout == 3) { //"cocos-explorer"-like layout
+            ImGui::DockBuilderDockWindow("###devtools/geometry-dash", id);
 
-        auto topLeftDock = ImGui::DockBuilderSplitNode(leftDock, ImGuiDir_Up, 0.4f, nullptr, &leftDock);
+            auto window = ImGui::DockBuilderAddNode(0, ImGuiDockNodeFlags_PassthruCentralNode);
 
-        auto bottomLeftTopHalfDock = ImGui::DockBuilderSplitNode(leftDock, ImGuiDir_Up, 0.6f, nullptr, &leftDock);
+            ImGui::DockBuilderSetNodeSize(window, ImGui::GetMainViewport()->Size / 1.9f);
+            ImGui::DockBuilderSetNodePos(window, { 50, 60 });
 
-        ImGui::DockBuilderDockWindow("###devtools/tree", topLeftDock);
-        ImGui::DockBuilderDockWindow("###devtools/settings", topLeftDock);
-        ImGui::DockBuilderDockWindow("###devtools/advanced/settings", topLeftDock);
-        ImGui::DockBuilderDockWindow("###devtools/attributes", bottomLeftTopHalfDock);
-        ImGui::DockBuilderDockWindow("###devtools/preview", leftDock);
-        ImGui::DockBuilderDockWindow("###devtools/geometry-dash", id);
-        ImGui::DockBuilderDockWindow("###devtools/advanced/mod-graph", topLeftDock);
-        ImGui::DockBuilderDockWindow("###devtools/advanced/mod-index", topLeftDock);
+            auto windowLeft = ImGui::DockBuilderSplitNode(window, ImGuiDir_Left, 0.5f, nullptr, &window);
 
+			ImGui::DockBuilderDockWindow("###devtools/tree", windowLeft);
+            ImGui::DockBuilderDockWindow("###devtools/settings", windowLeft);
+            ImGui::DockBuilderDockWindow("###devtools/advanced/settings", windowLeft);
+
+			ImGui::DockBuilderDockWindow("###devtools/attributes", window);
+            ImGui::DockBuilderDockWindow("###devtools/advanced/mod-graph", window);
+            ImGui::DockBuilderDockWindow("###devtools/advanced/mod-index", window);
+
+            ImGui::DockBuilderDockWindow("###devtools/preview", window);
+            ImGui::DockBuilderDockWindow("###devtools/memory-viewer", window);
+
+            ImGui::DockBuilderFinish(window);
+        }
+        else {
+            //m_shouldRelayout  = 1 -> left
+            //m_shouldRelayout  = 2 -> right 
+            //m_shouldRelayout >= 3 -> others non-default.
+            auto sideDock = ImGui::DockBuilderSplitNode(m_dockspaceID, m_shouldRelayout == 2 ? ImGuiDir_Right : ImGuiDir_Left, 0.3f, nullptr, &id);
+            auto topSideDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.4f, nullptr, &sideDock);
+            auto bottomLeftTopHalfDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.6f, nullptr, &sideDock);
+
+            ImGui::DockBuilderDockWindow("###devtools/tree", topSideDock);
+            ImGui::DockBuilderDockWindow("###devtools/settings", topSideDock);
+            ImGui::DockBuilderDockWindow("###devtools/advanced/settings", topSideDock);
+            ImGui::DockBuilderDockWindow("###devtools/attributes", bottomLeftTopHalfDock);
+            ImGui::DockBuilderDockWindow("###devtools/memory-viewer", bottomLeftTopHalfDock);
+            ImGui::DockBuilderDockWindow("###devtools/preview", sideDock);
+            ImGui::DockBuilderDockWindow("###devtools/geometry-dash", id);
+            ImGui::DockBuilderDockWindow("###devtools/advanced/mod-graph", topSideDock);
+            ImGui::DockBuilderDockWindow("###devtools/advanced/mod-index", topSideDock);
+        };
         ImGui::DockBuilderFinish(id);
+
+        m_shouldRelayout = false;
     }
 
     this->drawPage(
@@ -163,7 +216,7 @@ void DevTools::drawPages() {
 
     if (m_settings.showMemoryViewer) {
         this->drawPage(
-            U8STR(FEATHER_TERMINAL " Memory viewer"), 
+            U8STR(FEATHER_TERMINAL " Memory viewer###devtools/memory-viewer"), 
             &DevTools::drawMemory
         );
     }
@@ -172,14 +225,19 @@ void DevTools::drawPages() {
 void DevTools::draw(GLRenderCtx* ctx) {
     if (m_visible) {
         if (m_reloadTheme) {
-            applyTheme(m_settings.theme);
             m_reloadTheme = false;
+            applyTheme(m_settings.theme);
         }
+        
+        ImDrawList* bgDrawList = ImGui::GetBackgroundDrawList();
+        ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+        bgDrawList->AddRectFilled(ImVec2(0, 0), viewportSize, IM_COL32(255, 255, 255, 255));
 
         m_dockspaceID = ImGui::DockSpaceOverViewport(
             0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode
         );
 
+        ImGui::GetIO().FontGlobalScale = m_settings.fontGlobalScale;
         ImGui::PushFont(m_defaultFont);
         this->drawPages();
         if (m_selectedNode) {
@@ -188,6 +246,50 @@ void DevTools::draw(GLRenderCtx* ctx) {
         if (this->shouldUseGDWindow()) this->drawGD(ctx);
         ImGui::PopFont();
     }
+
+#ifdef GEODE_IS_WINDOWS // cursor updates 
+
+    // Windows exclusive feature that shows hidden cursor out of GD Window
+    auto isCursorVisible = false;
+    CURSORINFO ci = { sizeof(ci) }; //winapi
+    if (GetCursorInfo(&ci)) isCursorVisible = (ci.flags & CURSOR_SHOWING) != 0;
+    ImGui::GetIO().MouseDrawCursor = m_visible and !isCursorVisible and !shouldPassEventsToGDButTransformed();
+
+    struct GLFWCursorData {
+        void* next = nullptr;
+        HCURSOR cursor;
+    };
+    auto& cursorField = *reinterpret_cast<GLFWCursorData**>(reinterpret_cast<uintptr_t>(CCEGLView::get()->getWindow()) + 0x50);
+
+    auto cursor = ImGui::GetIO().MouseDrawCursor ? ImGuiMouseCursor_None : ImGui::GetMouseCursor();
+    static ImGuiMouseCursor lastCursor = ImGuiMouseCursor_COUNT;
+    if (cursor != lastCursor) {
+        lastCursor = cursor; 
+        auto winCursor = IDC_ARROW;
+        switch (cursor)
+        {
+        case ImGuiMouseCursor_Arrow: winCursor = IDC_ARROW; break;
+        case ImGuiMouseCursor_TextInput: winCursor = IDC_IBEAM; break;
+        case ImGuiMouseCursor_ResizeAll: winCursor = IDC_SIZEALL; break;
+        case ImGuiMouseCursor_ResizeEW: winCursor = IDC_SIZEWE; break;
+        case ImGuiMouseCursor_ResizeNS: winCursor = IDC_SIZENS; break;
+        case ImGuiMouseCursor_ResizeNESW: winCursor = IDC_SIZENESW; break;
+        case ImGuiMouseCursor_ResizeNWSE: winCursor = IDC_SIZENWSE; break;
+        case ImGuiMouseCursor_Hand: winCursor = IDC_HAND; break;
+        case ImGuiMouseCursor_NotAllowed: winCursor = IDC_NO; break;
+        }
+        if (cursorField) {
+            cursorField->cursor = LoadCursor(NULL, winCursor);
+        }
+        else {
+            // must be heap allocated
+            cursorField = new GLFWCursorData{
+                .next = nullptr,
+                .cursor = LoadCursor(NULL, winCursor)
+            };
+        }
+    }
+#endif
 }
 
 void DevTools::setupFonts() {
@@ -235,13 +337,14 @@ void DevTools::setup() {
     io.ConfigDockingWithShift = false;
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigWindowsResizeFromEdges = true;
+    io.FontAllowUserScaling = true;
+    io.MouseDoubleClickTime = 1.0f;
 
     this->setupFonts();
     this->setupPlatform();
 
 #ifdef GEODE_IS_MOBILE
-    ImGui::GetIO().FontGlobalScale = 2.f;
-    ImGui::GetStyle().ScrollbarSize = 60.f;
+    ImGui::GetStyle().ScrollbarSize = 20.f;
     // ImGui::GetStyle().TabBarBorderSize = 60.f;
 #endif
 }
@@ -259,12 +362,18 @@ void DevTools::destroy() {
     m_reloadTheme = true;
 }
 
+bool DevTools::isVisible() {
+    return m_visible;
+}
+
 void DevTools::show(bool visible) {
     m_visible = visible;
 
     auto& io = ImGui::GetIO();
     io.WantCaptureMouse = visible;
     io.WantCaptureKeyboard = visible;
+
+    getMod()->setSavedValue<bool>("visible", m_visible);
 }
 
 void DevTools::toggle() {

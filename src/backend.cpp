@@ -11,6 +11,29 @@ using namespace cocos2d;
 
 // based off https://github.com/matcool/gd-imgui-cocos
 
+// little helper function to convert ImTexture2D <=> GLuint,
+// supporting both versions of imgui where this was a void* and is now a u64
+// (templated because c++ is stupid)
+
+template <class T = ImTextureID>
+static GLuint toGLTexture(std::type_identity_t<T> tex) {
+    if constexpr (std::is_same_v<T, void*>) {
+        return static_cast<GLuint>(reinterpret_cast<std::uintptr_t>(tex));
+    }
+    else {
+        return static_cast<GLuint>(tex);
+    }
+}
+template <class T = ImTextureID>
+static T fromGLTexture(GLuint tex) {
+    if constexpr (std::is_same_v<T, void*>) {
+        return reinterpret_cast<T>(tex);
+    }
+    else {
+        return static_cast<T>(tex);
+    }
+}
+
 static bool g_useNormalPos = false;
 
 CCPoint getMousePos_H() {
@@ -54,7 +77,7 @@ void DevTools::setupPlatform() {
     m_fontTexture->initWithData(pixels, kCCTexture2DPixelFormat_RGBA8888, width, height, CCSize(width, height));
     m_fontTexture->retain();
 
-    io.Fonts->SetTexID(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(m_fontTexture->getName())));
+    io.Fonts->SetTexID(fromGLTexture(m_fontTexture->getName()));
 
     // fixes getMousePos to be relative to the GD view
     #ifndef GEODE_IS_MOBILE
@@ -148,7 +171,7 @@ void DevTools::renderDrawDataFallback(ImDrawData* draw_data) {
         auto* idxBuffer = list->IdxBuffer.Data;
         auto* vtxBuffer = list->VtxBuffer.Data;
         for (auto& cmd : list->CmdBuffer) {
-            ccGLBindTexture2D(static_cast<GLuint>(reinterpret_cast<intptr_t>(cmd.GetTexID())));
+            ccGLBindTexture2D(toGLTexture(cmd.GetTexID()));
 
             const auto rect = cmd.ClipRect;
             const auto orig = toCocos(ImVec2(rect.x, rect.y));
@@ -235,7 +258,7 @@ void DevTools::renderDrawData(ImDrawData* draw_data) {
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, list->IdxBuffer.Size * sizeof(ImDrawIdx), list->IdxBuffer.Data, GL_STREAM_DRAW);
 
         for (auto& cmd : list->CmdBuffer) {
-            ccGLBindTexture2D(static_cast<GLuint>(reinterpret_cast<intptr_t>(cmd.GetTexID())));
+            ccGLBindTexture2D(toGLTexture(cmd.GetTexID()));
 
             const auto rect = cmd.ClipRect;
             const auto orig = toCocos(ImVec2(rect.x, rect.y));
@@ -352,7 +375,88 @@ class $modify(CCIMEDispatcher) {
             CCIMEDispatcher::dispatchDeleteBackward();
         }
         // is this really how youre supposed to do this
-        io.AddKeyEvent(ImGuiKey_Backspace, true);
-        io.AddKeyEvent(ImGuiKey_Backspace, false);
+        //io.AddKeyEvent(ImGuiKey_Backspace, true);
+        //io.AddKeyEvent(ImGuiKey_Backspace, false); // Happen two times since CCKeyboardDispatcher hook added
     }
 };
+
+// Full keys and key modifiers support
+#define AddKeyEvent(keyName) if (key == KEY_##keyName) io.AddKeyAnalogEvent(ImGuiKey_##keyName, down, 1.f)
+#define AddKeyModEvent(keyName) if (key == KEY_##keyName) io.AddKeyAnalogEvent(ImGuiKey_Mod##keyName, down, 1.f);
+#define AddKeyEventArrow(keyName) if (key == KEY_##keyName or key == KEY_Arrow##keyName) io.AddKeyAnalogEvent(ImGuiKey_##keyName##Arrow, down, 1.f)
+#include <Geode/modify/CCKeyboardDispatcher.hpp>
+class $modify(CCKeyboardDispatcher) {
+    bool dispatchKeyboardMSG(enumKeyCodes key, bool down, bool arr) {
+        //log::debug("{}({},{},{})", __FUNCTION__, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)), down, arr);
+        auto& io = ImGui::GetIO();
+        {
+            if (key == KEY_Control) io.AddKeyAnalogEvent(ImGuiKey_ModCtrl, down, 1.f);
+            AddKeyModEvent(Shift);
+            AddKeyModEvent(Alt);
+            //xd
+            AddKeyEventArrow(Left);
+            AddKeyEventArrow(Right);
+            AddKeyEventArrow(Down);
+            AddKeyEventArrow(Up);
+            AddKeyEvent(Space);
+            AddKeyEvent(Backspace);//0x09,
+            AddKeyEvent(Tab);//0x09,
+            AddKeyEvent(Enter);//0x0D,
+            AddKeyEvent(Pause);//0x13,
+            AddKeyEvent(CapsLock);//0x14,
+            AddKeyEvent(Escape);//0x1B,
+            AddKeyEvent(Space);//0x20,
+            AddKeyEvent(PageUp);//0x21,
+            AddKeyEvent(PageDown);//0x22,
+            AddKeyEvent(End);//0x23,
+            AddKeyEvent(Home);//0x24,
+            AddKeyEvent(PrintScreen);//0x2C,
+            AddKeyEvent(Insert);//0x2D,
+            AddKeyEvent(Delete);//0x2E,
+            AddKeyEvent(A);//0x41,
+            AddKeyEvent(B);//0x42,
+            AddKeyEvent(C);//0x43,
+            AddKeyEvent(D);//0x44,
+            AddKeyEvent(E);//0x45,
+            AddKeyEvent(F);//0x46,
+            AddKeyEvent(G);//0x47,
+            AddKeyEvent(H);//0x48,
+            AddKeyEvent(I);//0x49,
+            AddKeyEvent(J);//0x4A,
+            AddKeyEvent(K);//0x4B,
+            AddKeyEvent(L);//0x4C,
+            AddKeyEvent(M);//0x4D,
+            AddKeyEvent(N);//0x4E,
+            AddKeyEvent(O);//0x4F,
+            AddKeyEvent(P);//0x50,
+            AddKeyEvent(Q);//0x51,
+            AddKeyEvent(R);//0x52,
+            AddKeyEvent(S);//0x53,
+            AddKeyEvent(T);//0x54,
+            AddKeyEvent(U);//0x55,
+            AddKeyEvent(V);//0x56,
+            AddKeyEvent(W);//0x57,
+            AddKeyEvent(X);//0x58,
+            AddKeyEvent(Y);//0x59,
+            AddKeyEvent(Z);//0x5A,
+            AddKeyEvent(F1);//0x70,
+            AddKeyEvent(F2);//0x71,
+            AddKeyEvent(F3);//0x72,
+            AddKeyEvent(F4);//0x73,
+            AddKeyEvent(F5);//0x74,
+            AddKeyEvent(F6);//0x75,
+            AddKeyEvent(F7);//0x76,
+            AddKeyEvent(F8);//0x77,
+            AddKeyEvent(F9);//0x78,
+            AddKeyEvent(F10);//0x79,
+            AddKeyEvent(F11);//0x7A,
+            AddKeyEvent(F12);//0x7B,
+            AddKeyEvent(ScrollLock);//0x91,
+        };
+        if (io.WantCaptureKeyboard) return true;
+        return CCKeyboardDispatcher::dispatchKeyboardMSG(key, down, arr);
+    }
+};
+#undef AddKeyEventArrow
+#undef AddKeyEvent
+#undef AddKeyModEvent

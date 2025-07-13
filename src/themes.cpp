@@ -105,8 +105,8 @@ namespace {
 
 ThemeDef createDarkTheme() {
 
-    constexpr ImVec4 DARK_THEME_BG            = color(33, 33, 33, 255);
-    constexpr ImVec4 DARK_THEME_BG_DARK       = color(22, 22, 22, 255);
+    constexpr ImVec4 DARK_THEME_BG            = color(0, 0, 0, 164);
+    constexpr ImVec4 DARK_THEME_BG_DARK       = color(0, 0, 0, 80);
     constexpr ImVec4 DARK_THEME_TEXT          = color(255, 255, 255, 255);
     constexpr ImVec4 DARK_THEME_LIGHT         = color(255, 255, 255, 255);
     ImVec4 DARK_THEME_PRIMARY       = colorFromCocos(DevTools::get()->getSettings().themeColor);
@@ -166,9 +166,9 @@ ThemeDef createDarkTheme() {
     return DARK_THEME_DEF;
 }
 
-constexpr ImVec4 MATERIAL_DARK_THEME_BG            = color(33,  33,  33, 255);
-constexpr ImVec4 MATERIAL_DARK_THEME_BG_DARK       = color(22,  22,  22, 255);
-constexpr ImVec4 MATERIAL_DARK_THEME_BG_LIGHT      = color(45,  45,  45, 255);
+constexpr ImVec4 MATERIAL_DARK_THEME_BG            = color(0, 0, 0, 164);
+constexpr ImVec4 MATERIAL_DARK_THEME_BG_DARK       = color(0, 0, 0, 80);
+constexpr ImVec4 MATERIAL_DARK_THEME_BG_LIGHT      = color(45, 45, 45, 80);
 constexpr ImVec4 MATERIAL_DARK_THEME_TEXT          = color(255, 255, 255, 255);
 constexpr ImVec4 MATERIAL_DARK_THEME_LIGHT         = color(255, 255, 255, 255);
 constexpr ImVec4 MATERIAL_DARK_THEME_PRIMARY       = color(70,  70,  70, 255);
@@ -292,6 +292,8 @@ static std::vector<std::string> THEME_OPTIONS = {
 };
 
 void applyCommon(ImGuiStyle& style) {
+    ImGui::GetStyle().TabRounding = 0.f;
+    ImGui::GetStyle().TabBarOverlineSize = 2.f;
     // style.WindowRounding    = 2.0f;
     // style.ScrollbarRounding = 3.0f;
     // style.GrabRounding      = 1.0f;

@@ -25,11 +25,11 @@ void DevTools::drawSettings() {
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Show GD inside a window when DevTools are open");
     }
+#endif
     ImGui::Checkbox("Attributes in Tree", &m_settings.attributesInTree);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Show node attributes in the Tree");
     }
-#endif
     ImGui::Checkbox("Highlight Nodes", &m_settings.alwaysHighlight);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
@@ -46,7 +46,14 @@ void DevTools::drawSettings() {
     ImGui::Checkbox("Arrow to Expand", &m_settings.arrowExpand);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
-            "If enabled, expanding nodes in the Tree only works with the arrow. "
+            "If enabled, expanding nodes in the Tree only works with the arrow.\n"
+            "Makes selecting nodes less annoying."
+        );
+    }
+    ImGui::Checkbox("Double-Click Expand", &m_settings.doubleClickExpand);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "If enabled, expanding nodes in the Tree only works with double-click instead of simple click.\n"
             "Makes selecting nodes less annoying."
         );
     }
@@ -80,7 +87,7 @@ void DevTools::drawSettings() {
 
     ImGui::Separator();
 
-    ImGui::DragFloat("Font Size", &ImGui::GetIO().FontGlobalScale, 0.01f, 1.0f, 3.0f);
+    ImGui::DragFloat("Font Size", &m_settings.fontGlobalScale, 0.01f, 1.0f, 3.0f);
     
 #ifdef GEODE_IS_DESKTOP
 
@@ -227,9 +234,15 @@ void DevTools::drawSettings() {
         Mod::get()->getVersion().toVString().c_str()
     );
 
-    if (ImGui::Button("Reset Layout")) {
-        m_shouldRelayout = true;
-    }
+    ImGui::BeginChild("Reset Layout Text Box", {}, ImGuiChildFlags_FrameStyle | ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY);
+    ImGui::Text("Reset Layout");
+	ImGui::EndChildFrame();
+    ImGui::SameLine();
+    if (ImGui::Button("Default")) m_shouldRelayout = 1;
+    ImGui::SameLine();
+    if (ImGui::Button("Def. Right")) m_shouldRelayout = 2;
+    ImGui::SameLine();
+    if (ImGui::Button("Cocos Explorer")) m_shouldRelayout = 3;
 }
 
 // TODO: this hook also isnt gd *
