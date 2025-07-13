@@ -249,7 +249,8 @@ void DevTools::drawLabelAttributes(CCNode* node) {
         }
     }
     if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {
-        if (ImGui::InputText("Fnt File", &label->m_sFntFile, 256)) label->setFntFile(label->m_sFntFile.c_str());
+        std::string fnt = label->m_sFntFile.c_str();
+        if (ImGui::InputText("Fnt File", &fnt, 256)) label->setFntFile(fnt.c_str());
         if (ImGui::InputInt("Extra Kerning", &label->m_nExtraKerning)) label->setExtraKerning(label->m_nExtraKerning); //inlined btw
         if (ImGui::DragFloat("Width", &label->m_fWidth, 0.1f)) if (label->m_fWidth) label->setWidth(label->m_fWidth);
 
