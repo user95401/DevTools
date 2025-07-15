@@ -28,7 +28,8 @@ struct matjson::Serialize<Settings> {
             ,.showModGraph = value["show_mod_graph"].asBool().unwrapOr(std::move(defaults.showModGraph))
             ,.theme = value["theme"].asString().unwrapOr(std::move(defaults.theme))
             ,.themeColor = value["theme_color"].as<ccColor4B>().unwrapOr(std::move(defaults.themeColor))
-            ,.fontGlobalScale = value["font_global_scale"].as<float>().unwrapOr(std::move(defaults.highlightLayouts))
+            ,.fontGlobalScale = value["font_global_scale"].as<float>().unwrapOr(std::move(defaults.fontGlobalScale))
+            ,.showLogsWindow = value["show_logs_window"].asBool().unwrapOr(std::move(defaults.showLogsWindow))
         });
     }
 
@@ -47,6 +48,7 @@ struct matjson::Serialize<Settings> {
             { "theme", settings.theme },
             { "theme_color", settings.themeColor },
             { "font_global_scale", settings.fontGlobalScale },
+            { "show_logs_window", settings.showLogsWindow },
         });
     }
 };
@@ -122,7 +124,7 @@ void DevTools::drawPage(const char* name, void(DevTools::*pageFun)()) {
 void DevTools::drawPages() {
     const auto size = CCDirector::sharedDirector()->getOpenGLView()->getFrameSize();
 
-    if ((!Mod::get()->setSavedValue("layout-loaded", true) || m_shouldRelayout)) {
+    if ((!Mod::get()->setSavedValue("layout-loaded-1.92.1", true) || m_shouldRelayout)) {
 
         auto id = m_dockspaceID;
         ImGui::DockBuilderRemoveNode(id);
@@ -148,6 +150,7 @@ void DevTools::drawPages() {
 
             ImGui::DockBuilderDockWindow("###devtools/preview", window);
             ImGui::DockBuilderDockWindow("###devtools/memory-viewer", window);
+            ImGui::DockBuilderDockWindow("###devtools/logs", window);
 
             ImGui::DockBuilderFinish(window);
         }
@@ -156,8 +159,8 @@ void DevTools::drawPages() {
             //m_shouldRelayout  = 2 -> right 
             //m_shouldRelayout >= 3 -> others non-default.
             auto sideDock = ImGui::DockBuilderSplitNode(m_dockspaceID, m_shouldRelayout == 2 ? ImGuiDir_Right : ImGuiDir_Left, 0.3f, nullptr, &id);
-            auto topSideDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.4f, nullptr, &sideDock);
-            auto bottomLeftTopHalfDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.6f, nullptr, &sideDock);
+            auto topSideDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.45f, nullptr, &sideDock);
+            auto bottomLeftTopHalfDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.55f, nullptr, &sideDock);
 
             ImGui::DockBuilderDockWindow("###devtools/tree", topSideDock);
             ImGui::DockBuilderDockWindow("###devtools/settings", topSideDock);
@@ -168,6 +171,9 @@ void DevTools::drawPages() {
             ImGui::DockBuilderDockWindow("###devtools/geometry-dash", id);
             ImGui::DockBuilderDockWindow("###devtools/advanced/mod-graph", topSideDock);
             ImGui::DockBuilderDockWindow("###devtools/advanced/mod-index", topSideDock);
+
+            auto bottom = ImGui::DockBuilderSplitNode(id, ImGuiDir_Down, 0.228f, nullptr, &id);
+            ImGui::DockBuilderDockWindow("###devtools/logs", bottom);
         };
         ImGui::DockBuilderFinish(id);
 
@@ -220,6 +226,16 @@ void DevTools::drawPages() {
             &DevTools::drawMemory
         );
     }
+
+    if (m_settings.showLogsWindow) {
+        this->drawPage(
+            U8STR(FEATHER_FILE " Logs###devtools/logs"),
+            &DevTools::drawLogs
+        );
+    }
+
+    ImGui::ShowMetricsWindow();
+
 }
 
 void DevTools::draw(GLRenderCtx* ctx) {
@@ -237,7 +253,11 @@ void DevTools::draw(GLRenderCtx* ctx) {
             0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode
         );
 
-        ImGui::GetIO().FontGlobalScale = m_settings.fontGlobalScale;
+        //ui was developed at...
+        float scale = ImGui::GetMainViewport()->Size.x / 1920.0f;
+        ImGui::GetIO().DisplayFramebufferScale = { 1920.0f, 1080.0f }; //  does nothing ig
+        ImGui::GetIO().FontGlobalScale = scale * m_settings.fontGlobalScale;
+
         ImGui::PushFont(m_defaultFont);
         this->drawPages();
         if (m_selectedNode) {

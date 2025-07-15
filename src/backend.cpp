@@ -11,29 +11,6 @@ using namespace cocos2d;
 
 // based off https://github.com/matcool/gd-imgui-cocos
 
-// little helper function to convert ImTexture2D <=> GLuint,
-// supporting both versions of imgui where this was a void* and is now a u64
-// (templated because c++ is stupid)
-
-template <class T = ImTextureID>
-static GLuint toGLTexture(std::type_identity_t<T> tex) {
-    if constexpr (std::is_same_v<T, void*>) {
-        return static_cast<GLuint>(reinterpret_cast<std::uintptr_t>(tex));
-    }
-    else {
-        return static_cast<GLuint>(tex);
-    }
-}
-template <class T = ImTextureID>
-static T fromGLTexture(GLuint tex) {
-    if constexpr (std::is_same_v<T, void*>) {
-        return reinterpret_cast<T>(tex);
-    }
-    else {
-        return static_cast<T>(tex);
-    }
-}
-
 static bool g_useNormalPos = false;
 
 CCPoint getMousePos_H() {
@@ -66,7 +43,7 @@ void DevTools::setupPlatform() {
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 
     // use static since imgui does not own the pointer!
-    static const auto iniPath = (Mod::get()->getSaveDir() / "imgui.ini").u8string();
+    static const auto iniPath = (Mod::get()->getSaveDir() / "imgui-1.92.1.ini").u8string();
     io.IniFilename = reinterpret_cast<const char*>(iniPath.c_str());
 
     unsigned char* pixels;
@@ -77,7 +54,7 @@ void DevTools::setupPlatform() {
     m_fontTexture->initWithData(pixels, kCCTexture2DPixelFormat_RGBA8888, width, height, CCSize(width, height));
     m_fontTexture->retain();
 
-    io.Fonts->SetTexID(fromGLTexture(m_fontTexture->getName()));
+    io.Fonts->SetTexID(textureID(m_fontTexture->getName()));
 
     // fixes getMousePos to be relative to the GD view
     #ifndef GEODE_IS_MOBILE
@@ -108,6 +85,7 @@ void DevTools::newFrame() {
     g_useNormalPos = true;
     const auto mousePos = toVec2(geode::cocos::getMousePos());
     g_useNormalPos = false;
+    io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
     io.AddMousePosEvent(mousePos.x, mousePos.y);
 #endif
 
@@ -171,7 +149,7 @@ void DevTools::renderDrawDataFallback(ImDrawData* draw_data) {
         auto* idxBuffer = list->IdxBuffer.Data;
         auto* vtxBuffer = list->VtxBuffer.Data;
         for (auto& cmd : list->CmdBuffer) {
-            ccGLBindTexture2D(toGLTexture(cmd.GetTexID()));
+            ccGLBindTexture2D(textureID(cmd.GetTexID()));
 
             const auto rect = cmd.ClipRect;
             const auto orig = toCocos(ImVec2(rect.x, rect.y));
@@ -258,7 +236,7 @@ void DevTools::renderDrawData(ImDrawData* draw_data) {
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, list->IdxBuffer.Size * sizeof(ImDrawIdx), list->IdxBuffer.Data, GL_STREAM_DRAW);
 
         for (auto& cmd : list->CmdBuffer) {
-            ccGLBindTexture2D(toGLTexture(cmd.GetTexID()));
+            ccGLBindTexture2D(textureID(cmd.GetTexID()));
 
             const auto rect = cmd.ClipRect;
             const auto orig = toCocos(ImVec2(rect.x, rect.y));
@@ -313,6 +291,7 @@ class $modify(CCTouchDispatcher) {
         }
 
         const auto pos = toVec2(touch->getLocation());
+        io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
         io.AddMousePosEvent(pos.x, pos.y);
         if (io.WantCaptureMouse) {
             bool didGDSwallow = false;
@@ -334,6 +313,7 @@ class $modify(CCTouchDispatcher) {
 
                     ImGui::SetWindowFocus("Geometry Dash");
                     didGDSwallow = true;
+                    io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
                     io.AddMouseButtonEvent(0, false);
                 }
             }
@@ -341,15 +321,18 @@ class $modify(CCTouchDispatcher) {
             // TODO: dragging out of gd makes it click in imgui
             if (!didGDSwallow) {
                 if (type == CCTOUCHBEGAN || type == CCTOUCHMOVED) {
+                    io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
                     io.AddMouseButtonEvent(0, true);
                 }
                 else {
+                    io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
                     io.AddMouseButtonEvent(0, false);
                 }
             }
         }
         else {
             if (type != CCTOUCHMOVED) {
+                io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
                 io.AddMouseButtonEvent(0, false);
             }
             if (!DevTools::get()->shouldUseGDWindow() || !DevTools::get()->shouldPopGame()) {
@@ -361,22 +344,10 @@ class $modify(CCTouchDispatcher) {
 
 class $modify(CCIMEDispatcher) {
     void dispatchInsertText(const char* text, int len, enumKeyCodes key) {
+        log::debug("{}(\"{}\", {}, {})", __FUNCTION__, text, len, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)));
         auto& io = ImGui::GetIO();
-        if (!io.WantCaptureKeyboard) {
-            CCIMEDispatcher::dispatchInsertText(text, len, key);
-        }
-        std::string str(text, len);
-        io.AddInputCharactersUTF8(str.c_str());
-    }
-
-    void dispatchDeleteBackward() {
-        auto& io = ImGui::GetIO();
-        if (!io.WantCaptureKeyboard) {
-            CCIMEDispatcher::dispatchDeleteBackward();
-        }
-        // is this really how youre supposed to do this
-        //io.AddKeyEvent(ImGuiKey_Backspace, true);
-        //io.AddKeyEvent(ImGuiKey_Backspace, false); // Happen two times since CCKeyboardDispatcher hook added
+        if (!io.WantTextInput) CCIMEDispatcher::dispatchInsertText(text, len, key);
+        if (text and text) io.AddInputCharactersUTF8(std::string(text, len).c_str());
     }
 };
 
@@ -387,7 +358,7 @@ class $modify(CCIMEDispatcher) {
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
 class $modify(CCKeyboardDispatcher) {
     bool dispatchKeyboardMSG(enumKeyCodes key, bool down, bool arr) {
-        //log::debug("{}({},{},{})", __FUNCTION__, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)), down, arr);
+        log::debug("{}({},{},{})", __FUNCTION__, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)), down, arr);
         auto& io = ImGui::GetIO();
         {
             if (key == KEY_Control) io.AddKeyAnalogEvent(ImGuiKey_ModCtrl, down, 1.f);

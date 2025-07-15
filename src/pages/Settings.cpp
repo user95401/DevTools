@@ -16,7 +16,7 @@ void DevTools::drawSettings() {
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 1.f, 1.f });
 
 #ifdef GEODE_IS_MOBILE
-    ImGui::Dummy({0.f, 60.f});
+    ImGui::Dummy({0.f, 20.f});
 #endif
 
     // TODO: fix this option as it hasnt worked in a while lol
@@ -65,12 +65,12 @@ void DevTools::drawSettings() {
             "As a side effect to disabling this, things may render incorrectly."
         );
     }
-    ImGui::Checkbox("Advanced Settings", &m_settings.advancedSettings);
+    /*ImGui::Checkbox("Advanced Settings", &m_settings.advancedSettings);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
             "Shows advanced settings. Mostly useful only for development of Geode itself."
         );
-    }
+    }*/
     ImGui::Checkbox("Show Memory Viewer", &m_settings.showMemoryViewer);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
@@ -83,6 +83,7 @@ void DevTools::drawSettings() {
             "Shows the mod graph window."
         );
     }
+
     ImGui::PopStyleVar();
 
     ImGui::Separator();
@@ -162,21 +163,6 @@ void DevTools::drawSettings() {
         static_cast<int>(frameSize.width / ratio),
         static_cast<int>(frameSize.height / ratio)
     );
-#endif
-
-#if 0
-    static Ref<CCSet> PAUSED_TARGETS = nullptr;
-    if (ImGui::Button(m_pauseGame ? "Resume Game" : "Pause Game")) {
-        m_pauseGame ^= 1;
-        if (m_pauseGame) {
-            FMODAudioEngine::sharedEngine()->m_globalChannel->setPaused(true);
-            PAUSED_TARGETS = CCDirector::get()->getScheduler()->pauseAllTargets();
-        }
-        else if (PAUSED_TARGETS) {
-            FMODAudioEngine::sharedEngine()->m_globalChannel->setPaused(false);
-            CCDirector::get()->getScheduler()->resumeTargets(PAUSED_TARGETS);
-        }
-    }
 #endif
 
     ImGui::Separator();

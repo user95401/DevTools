@@ -7,6 +7,29 @@
 
 using namespace cocos2d;
 
+// little helper function to convert ImTexture2D <=> GLuint,
+// supporting both versions of imgui where this was a void* and is now a u64
+// (templated because c++ is stupid)
+
+template <class T = ImTextureID>
+static GLuint textureID(std::type_identity_t<T> tex) {
+    if constexpr (std::is_same_v<T, void*>) {
+        return static_cast<GLuint>(reinterpret_cast<std::uintptr_t>(tex));
+    }
+    else {
+        return static_cast<GLuint>(tex);
+    }
+}
+template <class T = ImTextureID>
+static T textureID(GLuint tex) {
+    if constexpr (std::is_same_v<T, void*>) {
+        return reinterpret_cast<T>(tex);
+    }
+    else {
+        return static_cast<T>(tex);
+    }
+}
+
 static std::ostream& operator<<(std::ostream& stream, ImVec2 const& vec) {
     return stream << vec.x << ", " << vec.y;
 }

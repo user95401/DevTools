@@ -27,6 +27,7 @@ struct Settings {
     bool orderChildren = true;
     bool advancedSettings = false;
     bool showMemoryViewer = false;
+    bool showLogsWindow = false;
     bool showModGraph = false;
     std::string theme = DARK_THEME;
     ccColor4B themeColor = {2, 119, 189, 255};
@@ -79,6 +80,7 @@ protected:
     void drawPage(const char* name, void(DevTools::* fun)());
     void drawPages();
     void drawMemory();
+    void drawLogs();
     void draw(GLRenderCtx* ctx);
 
     void newFrame();
