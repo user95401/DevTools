@@ -282,9 +282,11 @@ void DevTools::draw(GLRenderCtx* ctx) {
                 ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
                 ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
                 ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
-                inpNodeRef->setString(ImGui::GetClipboardText());
             }
-            inpNodeRef->onClickTrackNode(ImGui::GetIO().WantTextInput);
+            queueInMainThread([] {
+                inpNodeRef->setString(ImGui::GetClipboardText());
+                inpNodeRef->onClickTrackNode(ImGui::GetIO().WantTextInput);
+                });
         };
     }
 
