@@ -43,8 +43,9 @@ void DevTools::setupPlatform() {
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 
     //define geode's clipboard funcs for imgui
+    auto static read = geode::utils::clipboard::read();
     auto Platform_GetClipboardTextFn__geode = [](ImGuiContext * ctx) {
-        auto read = geode::utils::clipboard::read();
+        read = geode::utils::clipboard::read();
         return read.c_str();
     };
     auto Platform_SetClipboardTextFn__geode = [](ImGuiContext * ctx, const char* text) {
