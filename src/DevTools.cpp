@@ -265,7 +265,7 @@ void DevTools::draw(GLRenderCtx* ctx) {
         ImGui::PopFont();
     }
 
-    if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
+    if (GEODE_DESKTOP(true or) false) if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
         log::error("want text input..");
         static Ref<CCTextInputNode> inpNodeRef;
         if (!inpNodeRef) {
@@ -274,6 +274,14 @@ void DevTools::draw(GLRenderCtx* ctx) {
             log::info("Created text input node: {}", inpNodeRef);
         }
         else {
+            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
+            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // sel
+            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
+            ImGui::GetIO().AddKeyEvent(ImGuiKey_X, true);       // cut
+            ImGui::GetIO().AddKeyEvent(ImGuiKey_X, false);
+            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
+
+            inpNodeRef->setString(ImGui::GetClipboardText());
             inpNodeRef->onClickTrackNode(true);
         }
     }
