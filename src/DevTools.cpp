@@ -265,8 +265,7 @@ void DevTools::draw(GLRenderCtx* ctx) {
         ImGui::PopFont();
     }
 
-    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
-        log::error("want text input..");
+    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0)) {
 
         static Ref<CCTextInputNode> inpNodeRef;
         if (!inpNodeRef) {
@@ -276,16 +275,17 @@ void DevTools::draw(GLRenderCtx* ctx) {
         }
 
         if (inpNodeRef) {
-            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
-            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // sel
-            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
-            ImGui::GetIO().AddKeyEvent(ImGuiKey_X, true);       // cut
-            ImGui::GetIO().AddKeyEvent(ImGuiKey_X, false);
-            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
-
-            inpNodeRef->setString(ImGui::GetClipboardText());
-            inpNodeRef->onClickTrackNode(true);
-        }
+            if (ImGui::GetIO().WantTextInput) {
+                ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
+                ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // select
+                ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
+                ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
+                ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
+                ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
+                inpNodeRef->setString(ImGui::GetClipboardText());
+            }
+            inpNodeRef->onClickTrackNode(ImGui::GetIO().WantTextInput);
+        };
     }
 
 #ifdef GEODE_IS_WINDOWS // cursor updates 

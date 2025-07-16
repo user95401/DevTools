@@ -356,7 +356,7 @@ class $modify(CCTouchDispatcher) {
 
 class $modify(CCIMEDispatcher) {
     void dispatchInsertText(const char* text, int len, enumKeyCodes key) {
-        //log::debug("{}(\"{}\", {}, {})", __FUNCTION__, text, len, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)));
+        log::debug("{}(\"{}\", {}, {})", __FUNCTION__, text, len, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)));
         auto& io = ImGui::GetIO();
         CCIMEDispatcher::dispatchInsertText(text, len, key);
         if (text and len) io.AddInputCharactersUTF8(std::string(text, len).c_str());
@@ -370,7 +370,7 @@ class $modify(CCIMEDispatcher) {
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
 class $modify(CCKeyboardDispatcher) {
     bool dispatchKeyboardMSG(enumKeyCodes key, bool down, bool arr) {
-        //log::debug("{}({},{},{})", __FUNCTION__, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)), down, arr);
+        log::debug("{}({},{},{})", __FUNCTION__, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)), down, arr);
         auto& io = ImGui::GetIO();
         {
             if (key == KEY_Control) io.AddKeyAnalogEvent(ImGuiKey_ModCtrl, down, 1.f);
