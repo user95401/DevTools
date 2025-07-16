@@ -42,6 +42,17 @@ void DevTools::setupPlatform() {
     // this is a lie hehe
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 
+    //define geode's clipboard funcs for imgui
+    auto Platform_GetClipboardTextFn__geode = [](ImGuiContext * ctx) {
+        auto read = geode::utils::clipboard::read();
+        return read.c_str();
+    };
+    auto Platform_SetClipboardTextFn__geode = [](ImGuiContext * ctx, const char* text) {
+        geode::utils::clipboard::write(text);
+    };
+    ImGui::GetPlatformIO().Platform_GetClipboardTextFn = Platform_GetClipboardTextFn__geode;
+    ImGui::GetPlatformIO().Platform_SetClipboardTextFn = Platform_SetClipboardTextFn__geode;
+
     // use static since imgui does not own the pointer!
     static const auto iniPath = (Mod::get()->getSaveDir() / "imgui-1.92.1.ini").u8string();
     io.IniFilename = reinterpret_cast<const char*>(iniPath.c_str());

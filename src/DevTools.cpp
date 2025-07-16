@@ -267,13 +267,15 @@ void DevTools::draw(GLRenderCtx* ctx) {
 
     if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
         log::error("want text input..");
+
         static Ref<CCTextInputNode> inpNodeRef;
         if (!inpNodeRef) {
             inpNodeRef = CCTextInputNode::create(100.f, 20.f, "xd", "geode.loader/mdFont.fnt");
             inpNodeRef->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
             log::info("Created text input node: {}", inpNodeRef);
         }
-        else {
+
+        if (inpNodeRef) {
             ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
             ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // sel
             ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
