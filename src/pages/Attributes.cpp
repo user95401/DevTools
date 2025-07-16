@@ -249,8 +249,18 @@ void DevTools::drawLabelAttributes(CCNode* node) {
         }
     }
     if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {
+
         std::string fnt = label->m_sFntFile.c_str();
-        if (ImGui::InputText("Fnt File", &fnt, 256)) label->setFntFile(fnt.c_str());
+        if (ImGui::InputText("Fnt File", &fnt, 256)) {
+            auto exists = cocos::fileExistsInSearchPaths(fnt.c_str());
+            if (exists) label->setFntFile(fnt.c_str());
+            else {
+                ImGui::BeginErrorTooltip();
+                ImGui::Text("File not found: %s!", fnt.c_str());
+				ImGui::EndTooltip();
+            }
+        }
+
         if (ImGui::InputInt("Extra Kerning", &label->m_nExtraKerning)) label->setExtraKerning(label->m_nExtraKerning); //inlined btw
         if (ImGui::DragFloat("Width", &label->m_fWidth, 0.1f)) if (label->m_fWidth) label->setWidth(label->m_fWidth);
 

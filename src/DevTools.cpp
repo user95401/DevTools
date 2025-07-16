@@ -124,13 +124,13 @@ void DevTools::drawPage(const char* name, void(DevTools::*pageFun)()) {
 void DevTools::drawPages() {
     const auto size = CCDirector::sharedDirector()->getOpenGLView()->getFrameSize();
 
-    if ((!Mod::get()->setSavedValue("layout-loaded-1.92.1", true) || m_shouldRelayout)) {
+    if ((!Mod::get()->setSavedValue("layout-loaded-1.92.1", true) || m_shouldRelayout > LayoutPreset::DontReset)) {
 
         auto id = m_dockspaceID;
         ImGui::DockBuilderRemoveNode(id);
         ImGui::DockBuilderAddNode(id, ImGuiDockNodeFlags_PassthruCentralNode);
 
-        if (m_shouldRelayout == 3) { //"cocos-explorer"-like layout
+        if (m_shouldRelayout == LayoutPreset::CocosExplorerLike) { //"cocos-explorer"-like layout
             ImGui::DockBuilderDockWindow("###devtools/geometry-dash", id);
 
             auto window = ImGui::DockBuilderAddNode(0, ImGuiDockNodeFlags_PassthruCentralNode);
@@ -158,7 +158,7 @@ void DevTools::drawPages() {
             //m_shouldRelayout  = 1 -> left
             //m_shouldRelayout  = 2 -> right 
             //m_shouldRelayout >= 3 -> others non-default.
-            auto sideDock = ImGui::DockBuilderSplitNode(m_dockspaceID, m_shouldRelayout == 2 ? ImGuiDir_Right : ImGuiDir_Left, 0.3f, nullptr, &id);
+            auto sideDock = ImGui::DockBuilderSplitNode(m_dockspaceID, m_shouldRelayout == LayoutPreset::DefaultRight ? ImGuiDir_Right : ImGuiDir_Left, 0.3f, nullptr, &id);
             auto topSideDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.45f, nullptr, &sideDock);
             auto bottomLeftTopHalfDock = ImGui::DockBuilderSplitNode(sideDock, ImGuiDir_Up, 0.55f, nullptr, &sideDock);
 
@@ -177,7 +177,7 @@ void DevTools::drawPages() {
         };
         ImGui::DockBuilderFinish(id);
 
-        m_shouldRelayout = false;
+        m_shouldRelayout = LayoutPreset::DontReset;
     }
 
     this->drawPage(

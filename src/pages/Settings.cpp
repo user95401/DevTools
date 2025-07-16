@@ -65,6 +65,7 @@ void DevTools::drawSettings() {
             "As a side effect to disabling this, things may render incorrectly."
         );
     }
+    //"if advanced ever has more than one option, add it back"? - so i remove it here too huh?
     /*ImGui::Checkbox("Advanced Settings", &m_settings.advancedSettings);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
@@ -230,11 +231,11 @@ void DevTools::drawSettings() {
     ImGui::Text("Reset Layout");
 	ImGui::EndChildFrame();
     ImGui::SameLine();
-    if (ImGui::Button("Default")) m_shouldRelayout = 1;
+    if (ImGui::Button("Default")) m_shouldRelayout = LayoutPreset::Default;
     ImGui::SameLine();
-    if (ImGui::Button("Def. Right")) m_shouldRelayout = 2;
+    if (ImGui::Button("Def. Right")) m_shouldRelayout = LayoutPreset::DefaultRight;
     ImGui::SameLine();
-    if (ImGui::Button("Cocos Explorer")) m_shouldRelayout = 3;
+    if (ImGui::Button("Cocos Explorer")) m_shouldRelayout = LayoutPreset::CocosExplorerLike;
 }
 
 // TODO: this hook also isnt gd *

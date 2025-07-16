@@ -17,13 +17,20 @@ enum class HighlightMode {
     Layout,
 };
 
+enum class LayoutPreset {
+    DontReset,
+    Default,
+    DefaultRight,
+    CocosExplorerLike,
+};
+
 struct Settings {
     bool GDInWindow = true;
     bool attributesInTree = false;
     bool alwaysHighlight = true;
     bool highlightLayouts = false;
-    bool arrowExpand = false GEODE_DESKTOP(+true);
-    bool doubleClickExpand = false GEODE_DESKTOP(+true);
+    bool arrowExpand = false GEODE_DESKTOP(or true);
+    bool doubleClickExpand = false GEODE_DESKTOP(or true);
     bool orderChildren = true;
     bool advancedSettings = false;
     bool showMemoryViewer = false;
@@ -39,7 +46,7 @@ protected:
     bool m_visible = getMod()->getSavedValue<bool>("visible");
     bool m_setup = false;
     bool m_reloadTheme = true;
-    int m_shouldRelayout = false;
+    LayoutPreset m_shouldRelayout = LayoutPreset::DontReset;
     bool m_showModGraph = false;
     bool m_pauseGame = false;
     Settings m_settings;
