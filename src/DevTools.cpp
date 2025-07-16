@@ -260,11 +260,23 @@ void DevTools::draw(GLRenderCtx* ctx) {
 
         ImGui::PushFont(m_defaultFont);
         this->drawPages();
-        if (m_selectedNode) {
-            this->highlightNode(m_selectedNode, HighlightMode::Selected);
-        }
+        if (m_selectedNode) this->highlightNode(m_selectedNode, HighlightMode::Selected);
         if (this->shouldUseGDWindow()) this->drawGD(ctx);
         ImGui::PopFont();
+    }
+
+    if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
+        log::error("want text input..");
+        Ref<TextInput> inpNode = nullptr;
+        if (!inpNode) {
+            inpNode = TextInput::create(0.f, "xd");
+            inpNode->setFilter(" !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~");
+            inpNode->getInputNode()->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+        }
+        else {
+            inpNode->defocus();
+            inpNode->focus();
+        }
     }
 
 #ifdef GEODE_IS_WINDOWS // cursor updates 
