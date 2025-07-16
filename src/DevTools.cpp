@@ -253,41 +253,13 @@ void DevTools::draw(GLRenderCtx* ctx) {
             0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode
         );
 
-        //ui was developed at...
-        float scale = ImGui::GetMainViewport()->Size.x / 1920.0f;
-        ImGui::GetIO().DisplayFramebufferScale = { 1920.0f, 1080.0f }; //  does nothing ig
-        ImGui::GetIO().FontGlobalScale = scale * m_settings.fontGlobalScale;
+        ImGui::GetIO().FontGlobalScale = m_settings.fontGlobalScale;
 
         ImGui::PushFont(m_defaultFont);
         this->drawPages();
         if (m_selectedNode) this->highlightNode(m_selectedNode, HighlightMode::Selected);
         if (this->shouldUseGDWindow()) this->drawGD(ctx);
         ImGui::PopFont();
-    }
-
-    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0)) {
-
-        static Ref<CCTextInputNode> inpNodeRef;
-        if (!inpNodeRef) {
-            inpNodeRef = CCTextInputNode::create(100.f, 20.f, "xd", "geode.loader/mdFont.fnt");
-            inpNodeRef->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-            log::info("Created text input node: {}", inpNodeRef);
-        }
-
-        if (inpNodeRef) {
-            if (ImGui::GetIO().WantTextInput) {
-                ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // select
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
-                ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
-            }
-            queueInMainThread([] {
-                inpNodeRef->setString(ImGui::GetClipboardText());
-                inpNodeRef->onClickTrackNode(ImGui::GetIO().WantTextInput);
-                });
-        };
     }
 
 #ifdef GEODE_IS_WINDOWS // cursor updates 
