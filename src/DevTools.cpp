@@ -265,7 +265,7 @@ void DevTools::draw(GLRenderCtx* ctx) {
         ImGui::PopFont();
     }
 
-    if (GEODE_DESKTOP(true or) false) if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
+    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0) and ImGui::GetIO().WantTextInput) {
         log::error("want text input..");
         static Ref<CCTextInputNode> inpNodeRef;
         if (!inpNodeRef) {
