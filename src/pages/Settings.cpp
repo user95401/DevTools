@@ -77,6 +77,12 @@ void DevTools::drawSettings() {
             "Shows the memory viewer window."
         );
     }
+    ImGui::Checkbox("Show Logs Window", &m_settings.showLogsWindow);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "Window with current log file contents rendered similar to console."
+        );
+    }
     ImGui::Checkbox("Show Mod Graph", &m_settings.showModGraph);
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
