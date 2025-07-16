@@ -56,18 +56,6 @@ void DevTools::setupPlatform() {
             geode::utils::clipboard::write(text);
         };
 
-    //ime fuckery
-    static Ref<CCTextInputNode> inpNodeRef;
-    /*if (GEODE_DESKTOP(false and) true) */ImGui::GetPlatformIO().Platform_SetImeDataFn =
-        [](ImGuiContext*, ImGuiViewport*, ImGuiPlatformImeData* data)
-        {
-            if (!inpNodeRef) {
-                inpNodeRef = CCTextInputNode::create(100.f, 20.f, "xd", "geode.loader/mdFont.fnt");
-                inpNodeRef->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-            }
-            if (inpNodeRef) inpNodeRef->onClickTrackNode(data->WantVisible);
-        };
-
     // use static since imgui does not own the pointer!
     static const auto iniPath = (Mod::get()->getSaveDir() / "imgui-1.92.1.ini").u8string();
     io.IniFilename = reinterpret_cast<const char*>(iniPath.c_str());
