@@ -120,6 +120,88 @@ void DevTools::render(GLRenderCtx* ctx) {
 
     DevTools::get()->draw(ctx);
 
+    // ime fuckery for mobile
+    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0)) {
+        static Ref<CCTextInputNode> inpNodeRef;
+        if (!inpNodeRef) {
+            inpNodeRef = CCTextInputNode::create(100.f, 20.f, "xd", "geode.loader/mdFont.fnt");
+            inpNodeRef->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+            log::info("Created text input node for ImGui: {}", inpNodeRef);
+            //inpNodeRef->setPosition(CCScene::get()->getContentSize() / 2.f);
+        }
+        if (inpNodeRef) {
+            if (ImGui::GetIO().WantTextInput) {
+                CCScene::get()->runAction(CCSequence::create(
+                    CallFuncExt::create(
+                        [] {
+                            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // select
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
+                        }
+                    ),
+                    CCDelayTime::create(0.01f), // wait wait wait ok
+                    CallFuncExt::create(
+                        [] {
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
+                            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
+                        }
+                    ),
+                    CCDelayTime::create(0.01f),
+                    CallFuncExt::create(
+                        [] {
+                            inpNodeRef->setString(ImGui::GetClipboardText());
+                            inpNodeRef->onClickTrackNode(true);
+                            //inpNodeRef->removeFromParent();
+                            //CCScene::get()->addChild(inpNodeRef);
+                        }
+                    ),
+                    nullptr
+                ));
+            }
+            else inpNodeRef->onClickTrackNode(false);
+        };
+    }
+
+    // Cursor updates via winapi
+#ifdef GEODE_IS_WINDOWS
+
+    struct GLFWCursorData {
+        void* next = nullptr;
+        HCURSOR cursor;
+    };
+    auto& cursorField = *reinterpret_cast<GLFWCursorData**>(reinterpret_cast<uintptr_t>(CCEGLView::get()->getWindow()) + 0x50);
+
+    auto cursor = ImGui::GetIO().MouseDrawCursor ? ImGuiMouseCursor_None : ImGui::GetMouseCursor();
+    static ImGuiMouseCursor lastCursor = ImGuiMouseCursor_COUNT;
+    if (cursor != lastCursor) {
+        lastCursor = cursor;
+        auto winCursor = IDC_ARROW;
+        switch (cursor)
+        {
+        case ImGuiMouseCursor_Arrow: winCursor = IDC_ARROW; break;
+        case ImGuiMouseCursor_TextInput: winCursor = IDC_IBEAM; break;
+        case ImGuiMouseCursor_ResizeAll: winCursor = IDC_SIZEALL; break;
+        case ImGuiMouseCursor_ResizeEW: winCursor = IDC_SIZEWE; break;
+        case ImGuiMouseCursor_ResizeNS: winCursor = IDC_SIZENS; break;
+        case ImGuiMouseCursor_ResizeNESW: winCursor = IDC_SIZENESW; break;
+        case ImGuiMouseCursor_ResizeNWSE: winCursor = IDC_SIZENWSE; break;
+        case ImGuiMouseCursor_Hand: winCursor = IDC_HAND; break;
+        case ImGuiMouseCursor_NotAllowed: winCursor = IDC_NO; break;
+        }
+        if (cursorField) {
+            cursorField->cursor = LoadCursor(NULL, winCursor);
+        }
+        else {
+            // must be heap allocated
+            cursorField = new GLFWCursorData{
+                .next = nullptr,
+                .cursor = LoadCursor(NULL, winCursor)
+            };
+        }
+    }
+#endif
+
     ImGui::Render();
 
     this->renderDrawData(ImGui::GetDrawData());
