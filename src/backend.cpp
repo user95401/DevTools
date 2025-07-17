@@ -47,12 +47,14 @@ void DevTools::setupPlatform() {
     ImGui::GetPlatformIO().Platform_GetClipboardTextFn = 
         [](ImGuiContext* ctx)
         {
+            log::debug("{}()", __FUNCTION__);
             read = geode::utils::clipboard::read();
             return read.c_str();
         };
     ImGui::GetPlatformIO().Platform_SetClipboardTextFn = 
         [](ImGuiContext* ctx, const char* text)
         {
+			log::debug("{}()", __FUNCTION__);
             geode::utils::clipboard::write(text);
         };
 
@@ -120,46 +122,68 @@ void DevTools::render(GLRenderCtx* ctx) {
 
     DevTools::get()->draw(ctx);
 
+    ImGui::Render();
+
+    this->renderDrawData(ImGui::GetDrawData());
+
     // ime fuckery for mobile
     if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0)) {
-        static Ref<CCTextInputNode> inpNodeRef;
+        static Ref<TextInput> inpNodeRef;
         if (!inpNodeRef) {
-            inpNodeRef = CCTextInputNode::create(100.f, 20.f, "xd", "geode.loader/mdFont.fnt");
-            inpNodeRef->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+            inpNodeRef = TextInput::create(100.f, "xd", "geode.loader/mdFont.fnt");
+            inpNodeRef->getInputNode()->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+            inpNodeRef->setCallback(
+                [](const std::string& str) {
+                    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
+                    ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);
+                    ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
+                    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);
+                    ImGui::GetIO().AddKeyEvent(ImGuiKey_Backspace, true);
+                    ImGui::GetIO().AddKeyEvent(ImGuiKey_Backspace, false);
+                    ImGui::GetIO().AddInputCharactersUTF8(str.c_str());
+                    auto curPos = inpNodeRef->getInputNode()->m_textField->m_uCursorPos;
+                    if (curPos != -1) { //-1 is the cursor at the end
+                        for (auto a : str) {
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_LeftArrow, true);
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_LeftArrow, false);
+                        }
+                        for (auto c = 0; c < curPos; ++c) {
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, true);
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_RightArrow, false);
+                        }
+                    }
+                }
+            );
             log::info("Created text input node for ImGui: {}", inpNodeRef);
-            //inpNodeRef->setPosition(CCScene::get()->getContentSize() / 2.f);
         }
         if (inpNodeRef) {
             if (ImGui::GetIO().WantTextInput) {
-                CCScene::get()->runAction(CCSequence::create(
-                    CallFuncExt::create(
-                        [] {
-                            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
-                            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // select
-                            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
-                            ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
-                        }
-                    ),
-                    CCDelayTime::create(0.01f), // wait wait wait ok
-                    CallFuncExt::create(
-                        [] {
-                            ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
-                            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
-                        }
-                    ),
-                    CCDelayTime::create(0.01f),
-                    CallFuncExt::create(
-                        [] {
-                            inpNodeRef->setString(ImGui::GetClipboardText());
-                            inpNodeRef->onClickTrackNode(true);
-                            //inpNodeRef->removeFromParent();
-                            //CCScene::get()->addChild(inpNodeRef);
-                        }
-                    ),
-                    nullptr
-                ));
+                ImGuiInputTextState& State = GImGui->InputTextState;
+                static int imguicurpos_onclick;
+                imguicurpos_onclick = State.GetCursorPos();
+
+                if (State.TextLen) {
+                    inpNodeRef->setString(std::string(State.TextA.Data, State.TextLen));
+
+                    inpNodeRef->focus();
+                    inpNodeRef->getInputNode()->onClickTrackNode(true);
+
+                    for (auto c : inpNodeRef->getString()) {
+                        CCIMEDispatcher::sharedDispatcher()->dispatchInsertText("a", 1, KEY_Left);
+                    }
+                    for (auto c = 0; c < imguicurpos_onclick; ++c) {
+                        CCIMEDispatcher::sharedDispatcher()->dispatchInsertText("a", 1, KEY_Right);
+                    }
+
+                    //inpNodeRef->setPosition(CCScene::get()->getContentSize() / 2.f);
+                    //inpNodeRef->removeFromParentAndCleanup(false);
+                    //CCScene::get()->addChild(inpNodeRef);
+                }
             }
-            else inpNodeRef->onClickTrackNode(false);
+            else {
+                inpNodeRef->defocus();
+                inpNodeRef->getInputNode()->onClickTrackNode(false);
+            }
         };
     }
 
@@ -201,10 +225,6 @@ void DevTools::render(GLRenderCtx* ctx) {
         }
     }
 #endif
-
-    ImGui::Render();
-
-    this->renderDrawData(ImGui::GetDrawData());
 }
 
 bool DevTools::hasExtension(const std::string& ext) const {
@@ -440,10 +460,17 @@ class $modify(CCTouchDispatcher) {
 
 class $modify(CCIMEDispatcher) {
     void dispatchInsertText(const char* text, int len, enumKeyCodes key) {
-        log::debug("{}(\"{}\", {}, {})", __FUNCTION__, text, len, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)));
-        auto& io = ImGui::GetIO();
+        if (0) log::debug("{}(text = \"{}\", len = {}, KEY_{} = {})", __FUNCTION__,
+            text, len, key > 1 ? CCKeyboardDispatcher::get()->keyToString(key) : "KEY_Unknown", (int)key
+        );
         CCIMEDispatcher::dispatchInsertText(text, len, key);
-        if (text and len) io.AddInputCharactersUTF8(std::string(text, len).c_str());
+        if (key < 0) { // KEY_Unknown, -1
+            ImGui::GetIO().AddInputCharactersUTF8(std::string(text, len).c_str());
+        }
+        else { // KEY_... (text "a")
+            CCKeyboardDispatcher::get()->dispatchKeyboardMSG(key, true, false);
+            CCKeyboardDispatcher::get()->dispatchKeyboardMSG(key, false, false);
+        }
     }
 };
 
@@ -454,7 +481,9 @@ class $modify(CCIMEDispatcher) {
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
 class $modify(CCKeyboardDispatcher) {
     bool dispatchKeyboardMSG(enumKeyCodes key, bool down, bool arr) {
-        log::debug("{}({},{},{})", __FUNCTION__, CCKeyboardDispatcher::get()->keyToString(((int)key > 1 ? key : KEY_ApplicationsKey)), down, arr);
+        if (0) log::debug("{}(KEY_{} = {}, down = {}, arr = {})", __FUNCTION__,
+            key > 1 ? CCKeyboardDispatcher::get()->keyToString(key) : "Unknown", (int)key, down, arr
+        );
         auto& io = ImGui::GetIO();
         {
             if (key == KEY_Control) io.AddKeyAnalogEvent(ImGuiKey_ModCtrl, down, 1.f);

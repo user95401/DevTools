@@ -245,7 +245,12 @@ void DevTools::drawLabelAttributes(CCNode* node) {
         std::string str = matjson::Value(label->getString()).dump();
         if (ImGui::InputText("Text", &str, 256)) {
             auto parse = matjson::parseAs<std::string>(str);
-            label->setString(parse.err().value_or(parse.unwrapOrDefault()).c_str());
+            if (parse.err()) {
+                ImGui::BeginErrorTooltip();
+                ImGui::Text("Parse error: %s", parse.err().value_or("unk").c_str());
+                ImGui::EndTooltip();
+            }
+            else label->setString(parse.unwrapOrDefault().c_str());
         }
     }
     if (auto label = typeinfo_cast<CCLabelBMFont*>(node)) {

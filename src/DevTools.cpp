@@ -253,7 +253,8 @@ void DevTools::draw(GLRenderCtx* ctx) {
             0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode
         );
 
-        ImGui::GetIO().FontGlobalScale = m_settings.fontGlobalScale;
+        ImGui::GetIO().FontGlobalScale = ImGui::GetMainViewport(
+        )->Size.x / 1920.f * m_settings.fontGlobalScale;
 
         ImGui::PushFont(m_defaultFont);
         this->drawPages();
