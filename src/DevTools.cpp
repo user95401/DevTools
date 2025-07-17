@@ -270,21 +270,40 @@ void DevTools::draw(GLRenderCtx* ctx) {
             inpNodeRef = CCTextInputNode::create(100.f, 20.f, "xd", "geode.loader/mdFont.fnt");
             inpNodeRef->m_allowedChars = " !\"#$ % &'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
             log::info("Created text input node: {}", inpNodeRef);
+            //inpNodeRef->setPosition(CCScene::get()->getContentSize() / 2.f);
         }
 
         if (inpNodeRef) {
             if (ImGui::GetIO().WantTextInput) {
-                ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // select
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
-                ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
-                ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
-                inpNodeRef->setString(ImGui::GetClipboardText());
+                CCScene::get()->runAction(CCSequence::create(
+                    CallFuncExt::create(
+                        [] {
+                            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);    // hold ctrl to do things
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, true);       // select
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_A, false);
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_C, true);       // copy
+                        }
+                    ),
+                    CCDelayTime::create(0.01f), // wait wait wait ok
+                    CallFuncExt::create(
+                        [] {
+                            ImGui::GetIO().AddKeyEvent(ImGuiKey_C, false);
+                            ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);   // release ctrl
+                        }
+                    ),
+                    CCDelayTime::create(0.01f),
+                    CallFuncExt::create(
+                        [] {
+                            inpNodeRef->setString(ImGui::GetClipboardText());
+                            inpNodeRef->onClickTrackNode(true);
+                            //inpNodeRef->removeFromParent();
+                            //CCScene::get()->addChild(inpNodeRef);
+                        }
+                    ),
+                    nullptr
+                ));
             }
-            inpNodeRef->setString(ImGui::GetClipboardText());
-            inpNodeRef->setString(ImGui::GetClipboardText());
-            inpNodeRef->onClickTrackNode(ImGui::GetIO().WantTextInput);
+            else inpNodeRef->onClickTrackNode(false);
         };
     }
 
