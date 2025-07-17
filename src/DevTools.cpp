@@ -263,9 +263,11 @@ void DevTools::draw(GLRenderCtx* ctx) {
     }
 
     // Shows hidden cursor out of GD Window
+#ifdef GEODE_IS_WINDOWS
     auto cursorHidden = CCEGLView::get()->m_bCursorHidden;
     auto drawCursor = m_visible and cursorHidden and !shouldPassEventsToGDButTransformed();
-    GEODE_DESKTOP(ImGui::GetIO().MouseDrawCursor = drawCursor);
+    ImGui::GetIO().MouseDrawCursor = drawCursor;
+#endif
 }
 
 void DevTools::setupFonts() {
