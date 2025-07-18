@@ -127,7 +127,7 @@ void DevTools::render(GLRenderCtx* ctx) {
     this->renderDrawData(ImGui::GetDrawData());
 
     // ime fuckery for mobile
-    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0)) {
+    /*if (GEODE_DESKTOP(false and) true)*/ if (ImGui::IsMouseReleased(0)) {
         static Ref<TextInput> inpNodeRef;
         if (!inpNodeRef) {
             inpNodeRef = TextInput::create(100.f, "xd", "geode.loader/mdFont.fnt");
@@ -157,7 +157,7 @@ void DevTools::render(GLRenderCtx* ctx) {
             log::info("Created text input node for ImGui: {}", inpNodeRef);
         }
         if (inpNodeRef) {
-            if (ImGui::GetIO().WantTextInput) {
+            if (ImGui::GetIO().WantTextInput) queueInMainThread([]{
                 ImGuiInputTextState& State = GImGui->InputTextState;
                 static int imguicurpos_onclick;
                 imguicurpos_onclick = State.GetCursorPos();
@@ -165,26 +165,30 @@ void DevTools::render(GLRenderCtx* ctx) {
                 if (State.TextLen) {
                     inpNodeRef->setString(std::string(State.TextA.Data, State.TextLen));
 
-                    inpNodeRef->focus();
-                    inpNodeRef->getInputNode()->onClickTrackNode(true);
-
+#ifndef GEODE_IS_IOS // CCIMEDispatcher::sharedDispatcher() = imac 0x4a89a0, m1 0x411d04;
                     for (auto c : inpNodeRef->getString()) {
                         CCIMEDispatcher::sharedDispatcher()->dispatchInsertText("a", 1, KEY_Left);
                     }
                     for (auto c = 0; c < imguicurpos_onclick; ++c) {
                         CCIMEDispatcher::sharedDispatcher()->dispatchInsertText("a", 1, KEY_Right);
                     }
+#else
+                    inpNodeRef->setString("");
+#endif
 
-                    //inpNodeRef->setPosition(CCScene::get()->getContentSize() / 2.f);
-                    //inpNodeRef->removeFromParentAndCleanup(false);
-                    //CCScene::get()->addChild(inpNodeRef);
+                    inpNodeRef->focus();
+                    inpNodeRef->getInputNode()->onClickTrackNode(true);
+
+                    inpNodeRef->setPosition(CCScene::get()->getContentSize() / 2.f);
+                    inpNodeRef->removeFromParentAndCleanup(false);
+                    CCScene::get()->addChild(inpNodeRef);
                 }
-            }
+            });
             else {
                 inpNodeRef->defocus();
                 inpNodeRef->getInputNode()->onClickTrackNode(false);
             }
-        };
+        }
     }
 
     // Cursor updates via winapi
@@ -463,14 +467,16 @@ class $modify(CCIMEDispatcher) {
         if (0) log::debug("{}(text = \"{}\", len = {}, KEY_{} = {})", __FUNCTION__,
             text, len, key > 1 ? CCKeyboardDispatcher::get()->keyToString(key) : "KEY_Unknown", (int)key
         );
-        CCIMEDispatcher::dispatchInsertText(text, len, key);
         if (key < 0) { // KEY_Unknown, -1
             ImGui::GetIO().AddInputCharactersUTF8(std::string(text, len).c_str());
         }
-        else { // KEY_... (text "a")
+        else if (ImGui::GetIO().WantCaptureKeyboard) { // KEY_... (text "a")
+            auto* capt = &ImGui::GetIO().WantCaptureKeyboard;
+            capt = ImGui::GetIO().WantTextInput ? false : capt;
             CCKeyboardDispatcher::get()->dispatchKeyboardMSG(key, true, false);
             CCKeyboardDispatcher::get()->dispatchKeyboardMSG(key, false, false);
         }
+        CCIMEDispatcher::dispatchInsertText(text, len, key);
     }
 };
 
