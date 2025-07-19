@@ -47,14 +47,12 @@ void DevTools::setupPlatform() {
     ImGui::GetPlatformIO().Platform_GetClipboardTextFn = 
         [](ImGuiContext* ctx)
         {
-            log::debug("{}()", __FUNCTION__);
             read = geode::utils::clipboard::read();
             return read.c_str();
         };
     ImGui::GetPlatformIO().Platform_SetClipboardTextFn = 
         [](ImGuiContext* ctx, const char* text)
         {
-			log::debug("{}()", __FUNCTION__);
             geode::utils::clipboard::write(text);
         };
 
@@ -127,7 +125,7 @@ void DevTools::render(GLRenderCtx* ctx) {
     this->renderDrawData(ImGui::GetDrawData());
 
     // ime fuckery for mobile
-    /*if (GEODE_DESKTOP(false and) true)*/ if (ImGui::IsMouseReleased(0)) {
+    if (GEODE_DESKTOP(false and) true) if (ImGui::IsMouseReleased(0)) {
         static Ref<TextInput> inpNodeRef;
         if (!inpNodeRef) {
             inpNodeRef = TextInput::create(100.f, "xd", "geode.loader/mdFont.fnt");
