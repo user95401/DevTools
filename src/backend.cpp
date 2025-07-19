@@ -469,7 +469,7 @@ class $modify(CCIMEDispatcher) {
             ImGui::GetIO().AddInputCharactersUTF8(std::string(text, len).c_str());
         }
         else if (ImGui::GetIO().WantCaptureKeyboard) { // KEY_... (text "a")
-            auto* capt = &ImGui::GetIO().WantCaptureKeyboard;
+            auto& capt = ImGui::GetIO().WantCaptureKeyboard;
             capt = ImGui::GetIO().WantTextInput ? false : capt;
             CCKeyboardDispatcher::get()->dispatchKeyboardMSG(key, true, false);
             CCKeyboardDispatcher::get()->dispatchKeyboardMSG(key, false, false);
